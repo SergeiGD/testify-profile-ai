@@ -1,0 +1,20 @@
+with-expecter: true
+resolve-type-alias: false
+disable-version-string: true
+issue-845-fix: true
+dir: '{{.InterfaceDir}}/mocks'
+filename: 'mock_{{.InterfaceName}}.go'
+mockname: 'Mock{{.InterfaceName}}'
+outpkg: 'mocks'
+log-level: info
+packages:
+  github.com/SergeiGD/testify-profile/internal/adapter/postgres:
+    interfaces:
+      UserRepository:
+      ConfirmationRepository:
+  github.com/SergeiGD/testify-profile/internal/adapter/smtp:
+    interfaces:
+      EmailSender:
+  github.com/SergeiGD/testify-profile/internal/services/clock:
+    interfaces:
+      Clock:

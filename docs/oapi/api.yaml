@@ -1,0 +1,178 @@
+---
+openapi: 3.0.0
+info:
+  title: Testify Profile
+  description: API для управления профилями
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080
+    description: localhost
+tags:
+  - name: healthcheck
+    description: healthcheck
+  - name: register
+    description: register
+
+paths:
+  /api/v1/healthcheck/:
+    get:
+      tags:
+        - healthcheck
+      summary: Healthcheck
+      description: Healthcheck
+      operationId: healthcheck
+      responses:
+        "200":
+          description: Успешное выполнение healthcheck
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Healthcheck'
+  /api/v1/register/:
+    post:
+      tags:
+        - register
+      summary: Register
+      operationId: register
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses: 
+        "201":
+          description: Первый этап регистрации успешно пройден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegisterOkResponse'
+        "400":
+          description: Ошибка валидации
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+  /api/v1/register/confim/{token}:
+    get:
+      tags:
+        - register
+      summary: Register confirm
+      operationId: registerConfirm
+      parameters: 
+        - name: token
+          in: path
+          required: true
+          description: Токен подтверждения регистрации
+          schema:
+            type: string
+      responses: 
+        "200":
+          description: Второй этап регистрации успешно пройден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegisterOkResponse'
+        "400":
+          description: Некорретный токен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+
+
+components:
+  schemas:
+    RegisterRequest:
+      type: object
+      required:
+        - email
+        - password
+        - username
+        - birth_date
+      properties:
+        email:
+          type: string
+          format: email
+          x-oapi-codegen-extra-tags:
+            validate: "required,email"
+        password:
+          type: string
+          minLength: 8
+          x-oapi-codegen-extra-tags:
+            validate: "required,min=8"
+        username:
+          type: string
+          minLength: 3
+          maxLength: 50
+          x-oapi-codegen-extra-tags:
+            validate: "required,min=3,max=50"
+        birth_date:
+          type: string
+          format: date
+          x-oapi-codegen-extra-tags:
+            validate: "required"
+
+    Healthcheck:
+      required:
+        - is_ok
+      type: object
+      properties:
+        is_ok:
+          type: boolean
+      description: Healthcheck
+
+    RegisterOkResponse:
+      required:
+        - is_ok
+      type: object
+      properties:
+        is_ok:
+          type: boolean
+      description: FirstStepRegister
+
+    ResponseError:
+      required:
+        - detail
+      properties:
+        detail:
+          type: string
+          description: Описание ошибки
+          example: Произошла неизвестная ошибка
+
+
+  responses:
+    "404NotFound":
+      description: Не найдено
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ResponseError'
+          examples:
+            NotFound:
+              summary: Не найдено
+              value:
+                detail: Не найдено
+    "40xError":
+      description: Ошибка во время выполнения запроса
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ResponseError'
+          examples:
+            Error:
+              summary: Ошибка во время выполнения запроса
+              value:
+                detail: Ошибка во время выполнения запроса
+    "50xError":
+      description: Ошибка сервера
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ResponseError'
+          examples:
+            Error:
+              summary: Ошибка во время выполнения запроса
+              value:
+                detail: Ошибка во время выполнения запроса
+                
