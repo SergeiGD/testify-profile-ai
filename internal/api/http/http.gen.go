@@ -26,6 +26,17 @@ type Healthcheck struct {
 	IsOk bool `json:"is_ok"`
 }
 
+// LoginRequest defines model for LoginRequest.
+type LoginRequest struct {
+	Email    openapi_types.Email `json:"email" validate:"required,email"`
+	Password string              `json:"password" validate:"required"`
+}
+
+// RefreshRequest defines model for RefreshRequest.
+type RefreshRequest struct {
+	RefreshToken string `json:"refresh_token" validate:"required"`
+}
+
 // RegisterOkResponse FirstStepRegister
 type RegisterOkResponse struct {
 	IsOk bool `json:"is_ok"`
@@ -45,11 +56,29 @@ type ResponseError struct {
 	Detail string `json:"detail"`
 }
 
+// TokenPairResponse defines model for TokenPairResponse.
+type TokenPairResponse struct {
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+}
+
+// LoginJSONRequestBody defines body for Login for application/json ContentType.
+type LoginJSONRequestBody = LoginRequest
+
+// RefreshJSONRequestBody defines body for Refresh for application/json ContentType.
+type RefreshJSONRequestBody = RefreshRequest
+
 // RegisterJSONRequestBody defines body for Register for application/json ContentType.
 type RegisterJSONRequestBody = RegisterRequest
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// Login
+	// (POST /api/v1/auth/login)
+	Login(c *gin.Context)
+	// Refresh tokens
+	// (POST /api/v1/auth/refresh)
+	Refresh(c *gin.Context)
 	// Healthcheck
 	// (GET /api/v1/healthcheck/)
 	Healthcheck(c *gin.Context)
@@ -69,6 +98,32 @@ type ServerInterfaceWrapper struct {
 }
 
 type MiddlewareFunc func(c *gin.Context)
+
+// Login operation middleware
+func (siw *ServerInterfaceWrapper) Login(c *gin.Context) {
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.Login(c)
+}
+
+// Refresh operation middleware
+func (siw *ServerInterfaceWrapper) Refresh(c *gin.Context) {
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.Refresh(c)
+}
 
 // Healthcheck operation middleware
 func (siw *ServerInterfaceWrapper) Healthcheck(c *gin.Context) {
@@ -148,9 +203,111 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 		ErrorHandler:       errorHandler,
 	}
 
+	router.POST(options.BaseURL+"/api/v1/auth/login", wrapper.Login)
+	router.POST(options.BaseURL+"/api/v1/auth/refresh", wrapper.Refresh)
 	router.GET(options.BaseURL+"/api/v1/healthcheck/", wrapper.Healthcheck)
 	router.POST(options.BaseURL+"/api/v1/register/", wrapper.Register)
 	router.GET(options.BaseURL+"/api/v1/register/confim/:token", wrapper.RegisterConfirm)
+}
+
+type LoginRequestObject struct {
+	Body *LoginJSONRequestBody
+}
+
+type LoginResponseObject interface {
+	VisitLoginResponse(w http.ResponseWriter) error
+}
+
+type Login200JSONResponse TokenPairResponse
+
+func (response Login200JSONResponse) VisitLoginResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type Login400JSONResponse ResponseError
+
+func (response Login400JSONResponse) VisitLoginResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type Login401JSONResponse ResponseError
+
+func (response Login401JSONResponse) VisitLoginResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RefreshRequestObject struct {
+	Body *RefreshJSONRequestBody
+}
+
+type RefreshResponseObject interface {
+	VisitRefreshResponse(w http.ResponseWriter) error
+}
+
+type Refresh200JSONResponse TokenPairResponse
+
+func (response Refresh200JSONResponse) VisitRefreshResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type Refresh400JSONResponse ResponseError
+
+func (response Refresh400JSONResponse) VisitRefreshResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type Refresh401JSONResponse ResponseError
+
+func (response Refresh401JSONResponse) VisitRefreshResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
 }
 
 type HealthcheckRequestObject struct {
@@ -248,6 +405,12 @@ func (response RegisterConfirm400JSONResponse) VisitRegisterConfirmResponse(w ht
 
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
+	// Login
+	// (POST /api/v1/auth/login)
+	Login(ctx context.Context, request LoginRequestObject) (LoginResponseObject, error)
+	// Refresh tokens
+	// (POST /api/v1/auth/refresh)
+	Refresh(ctx context.Context, request RefreshRequestObject) (RefreshResponseObject, error)
 	// Healthcheck
 	// (GET /api/v1/healthcheck/)
 	Healthcheck(ctx context.Context, request HealthcheckRequestObject) (HealthcheckResponseObject, error)
@@ -314,6 +477,68 @@ type strictHandler struct {
 	ssi         StrictServerInterface
 	middlewares []StrictMiddlewareFunc
 	options     StrictGinServerOptions
+}
+
+// Login operation middleware
+func (sh *strictHandler) Login(ctx *gin.Context) {
+	var request LoginRequestObject
+
+	var body LoginJSONRequestBody
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(ctx, err)
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.Login(ctx, request.(LoginRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "Login")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(LoginResponseObject); ok {
+		if err := validResponse.VisitLoginResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// Refresh operation middleware
+func (sh *strictHandler) Refresh(ctx *gin.Context) {
+	var request RefreshRequestObject
+
+	var body RefreshJSONRequestBody
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(ctx, err)
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.Refresh(ctx, request.(RefreshRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "Refresh")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(RefreshResponseObject); ok {
+		if err := validResponse.VisitRefreshResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
 }
 
 // Healthcheck operation middleware
@@ -402,22 +627,26 @@ func (sh *strictHandler) RegisterConfirm(ctx *gin.Context, token string) {
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"1FXRittGFP0VcdtHbeTtNrAI8tCWlgYKDdu+BRNm5WtrspJGGY23XhaD1yklUEqg702g/QF3u26Vddf+",
-	"hTt/VGYk2ZLs0EKdhzxZnrlz79E5Z44uIRBxKhJMVAb+JWRBiDGzj18ii1QYhBicmb89zALJU8VFAn5j",
-	"04VUihSl4mgP8uyJsEfURYrgw6kQEbIExmMXJD4bcok98B+XdV23qhOnTzFQMHbhBAc8Uyi/PjvBLBVJ",
-	"htsIvuAyU98oTKvid4jjBJ8NMVOmV3PEKZcqfNJjygLsCxkzBT7YhXW/TEmeDMCF0YFgKT8IRA8HmBzg",
-	"SEl2oNjAtjpnES8abcAZpBgzHjW6Fyv/v71bNDJDUpZl3wnZM5UxT77CZKBC8I/3MCTmyYNjO2SYoUxY",
-	"bKmK2agacr/j1mce7WnmkRuz0YP7HRi39a74W790DZpbl3S3JQpDfi6lkNuG6KEq5Wq6lV7RinJ9RTO6",
-	"o5zmDi31C8rpd7qlHFzAEYvTyIyi13pCS8rpL1uyoJlDdzS3C9c011d6Snc00y/rLWZbdmi/dAmsa9ng",
-	"SV9sY/zk0UOHbmihXzr6Oa30hGZ0TQuaG8hmnlla6u8pNzX0twWuuLKwv8VM8f6F80iKPo8Mkecos6Lx",
-	"4b3OvY4hT6SYsJSDD0d2yWigQkucx1LunR964SZYPLM+QPVv6WP4Z2bnYW9rT5Zy2RkfdTrmJxCJwsS2",
-	"ZWka8cAe9p5mpncVgebpQ4l98OEDb5ORXhmQXn2M5bSl92/6ilY01y/ojpZG72v9I61oSQurZmGCsNHE",
-	"hWwYx0xebL1F4fXHUK/vmgMVa7IMKktZKoqoavJSi0lZxNmnonexNz7aUdm6dUoOcbwlx+Hex9e+GLtU",
-	"eU1zPbFSvHH0T3pKM1o5ekJz+sPcTj01ptc/UE65o5/XJSzdT2/oxshn3PzxHu3UjJVd0F9tLrtD1zSj",
-	"BeV0U6Ft2acmduWdyiJvMU4gkj6PvUslzjAZ127ebhd9ZsplbG+wZDEqlGbKVuz9Sku6NYQ51vw3empD",
-	"bEJ/FjzaYNktAJicAt9GBLhQfDnA4oO2tdwaze0c7L7DFPiPtvtZT2lZ2Od9s90vNKdbA97ANZ+e4u5M",
-	"K13fYjwnWBtklwHNGZTnu00TiYBFoQkxF4YyAh9CpVLf89Yb/nHnuANG2bJ5u0XYiM/SOo20ddtH5ObK",
-	"lPXrlXF3/E8AAAD//w==",
+	"7JfRbts2F8dfReD3XSqVs65AIKAX27BhBQqsyHpXBAEj0xYbSVRJOksQGEjSYSuQDcV2vxbYXsD14s2J",
+	"Z+cVDt9oOJRkS7KdBINddMDuJIo85/DP3zk8OiaBiFORsEQr4h8TFYQspvbxS0YjHQYhC/bxtclUIHmq",
+	"uUiIX/noklSKlEnNmV3I1a6wS/RRyohP9oSIGE1It+sSyV50uGRN4j/L5+24xTyx95wFmnRd8li0ebLN",
+	"XnSY0mioap/FlEf40BIyppr4+cjUkNKSJ23iksMNQVO+EYgma7Nkgx1qSTc0bVszBzTiTapxQRGVmxnC",
+	"QFOq1DdCNkv7+MdmSbe+9SLgqZdFKmyzlmQqXKqDzL7varHPkvXEWXWxOMg2V5rJr/a3mUpFotg8LF9w",
+	"qfTXmqXF5DUgU5heqtYelzrczXZcQscOuKuQzn3/YMY8ecyStg6Jv7UCJzFPHm5ZJx3FZEJjK1VMDwsn",
+	"Dxpu2ef9Ffm878b08OGDxh3ypBSaWz7SxUhkQH4upZDzQDSZzo+rSiu8gWsYmlPowRiGMHBgYl7BEN7B",
+	"FQyJS9ghjdMIXcFbcwITGMKfdsoIeg6MYWAH+jAwp+YMxtAzr8smenM41DedB7bTdclTzLsnlMtyclW3",
+	"QYOAKbWsCFjTN5aJuveKPffWCoDLedIS8zp+8uSRAxcwMq8d8xKuzQn0oA8jGKCsqAkOTcy3MMQ58JcV",
+	"V3NtpX3KlOatI+eJFC0e4WEfMKkyw5v3GvcauDORsoSmnPjkvh1CTnRoVfFoyr2DTY92dOhFeJ1Y5URW",
+	"GVA/imE+ahI/u21IpgJT+lPRPMJJgUg0S+x8mqYRD+wK77kSyeymxKf/S9YiPvmfN7tKvfwe9So3WQ1v",
+	"LTvMDmRHa+P+qNFYme95eGwANdp/M6dwDQPzqkC1B31zBhNzYjnume/wtFDuj1cYWzU3F8X1ZpYxDvSh",
+	"ByMYwkUWDwyzeDbfYzy/wMAm9QmMzTkMHPPSfG9+wgy3rxgajLMXm1OqE8dUHpX4ysrgM4JMkh2cU6E0",
+	"z7TlnOb9wJpIrXUbHySrv8IErrCAmHPUfwbuxIEJvMOHosSY8/+QRWQvYACX9ibqw9CcwQBG5geL6aWT",
+	"E+dgume61sjNmXBs8Vc3IhzOfgg8jLzN9G1/DVW6q9/WBlrZzW3lcIJ53TfncA0TGNmrPesIwoqRsmLV",
+	"XRRyledXVJN51+rdlPXTnnk9aV/tm++U95srd1/6fVh0Km9t4e1bas2P5gx6cO2YExjA79iqmTPsLrI0",
+	"mysMts2AS5sJ4w+vKNQSbnrYBTsFIkvACUTS4rF3bFO0W8q8xRR9htNlbFslSWOmmUQvx0srrWPhv7D1",
+	"A8/gj0xH28EtPgCCDSHxbS9GXJL9RpBZP1lGyy3JXG9Ld9ZYBe6I3c95IzT592GHtf8Kg8dw8y7l8qZK",
+	"nwniBFNAFgGIa5g8WAxNJAIahVjEXNKREfFJqHXqe970g7/V2GoQPNnceN1EWCmfOTqVauvWl8hZyuTz",
+	"pyPzk+29NZ1o37o73b8DAAD//w==",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,

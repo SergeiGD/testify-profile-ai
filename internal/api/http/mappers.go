@@ -62,3 +62,17 @@ func mapConfirmError(err error) string {
 		return "Произошла ошибка при подтверждении регистрации"
 	}
 }
+
+// mapAuthError returns a user-facing message and an HTTP status code (400 or 401).
+func mapAuthError(err error) (string, int) {
+	switch {
+	case errors.Is(err, domain.ErrInvalidCredentials):
+		return "Неверный email или пароль", 401
+	case errors.Is(err, domain.ErrAccountNotConfirmed):
+		return "Аккаунт не подтверждён", 401
+	case errors.Is(err, domain.ErrInvalidRefreshToken):
+		return "Недействительный или истёкший refresh токен", 401
+	default:
+		return "Произошла ошибка при авторизации", 400
+	}
+}

@@ -27,7 +27,9 @@
 ```
 internal/
 ├── api/http/           # HTTP-обработчики (сгенерированы из OpenAPI + кастомные хендлеры)
-├── usecases/register/  # Бизнес-логика регистрации
+├── usecases/
+│   ├── register/       # Бизнес-логика регистрации
+│   └── auth/           # Бизнес-логика аутентификации (login, refresh)
 ├── adapter/
 │   ├── postgres/       # Репозитории (PostgreSQL)
 │   └── smtp/           # Email-отправитель
@@ -35,6 +37,7 @@ internal/
 │   ├── clock/          # Абстракция времени (удобно для тестов)
 │   ├── token/          # Генерация токенов подтверждения
 │   ├── password/       # Хэширование паролей
+│   ├── jwt/            # Генерация и верификация JWT (RS256)
 │   └── linkbuilder/    # Построение ссылок подтверждения
 ├── domain/             # Доменные ошибки
 ├── models/             # Модели данных (User, RegistrationConfirmation)
@@ -52,6 +55,8 @@ internal/
 | GET    | `/api/v1/healthcheck/`              | Проверка работоспособности сервиса          |
 | POST   | `/api/v1/register/`                 | Шаг 1: создание аккаунта, отправка письма   |
 | GET    | `/api/v1/register/confim/{token}`   | Шаг 2: подтверждение email по токену        |
+| POST   | `/api/v1/auth/login`                | Вход: получение access + refresh токенов    |
+| POST   | `/api/v1/auth/refresh`              | Обновление пары токенов по refresh токену   |
 
 ### Пример запроса регистрации
 
@@ -112,6 +117,10 @@ cp .env.example .env
 | `REGISTRATION_TOKEN_TTL`      | Время жизни токена подтверждения регистрации          |
 | `REGISTRATION_RESEND_COOLDOWN`| Минимальный интервал между повторными отправками      |
 | `USE_MOCK_EMAIL_SENDER`       | Использовать мок вместо реального SMTP (`true`/`false`)|
+| `JWT_PRIVATE_KEY`             | RSA приватный ключ (PEM) для подписи JWT (RS256)       |
+| `JWT_PUBLIC_KEY`              | RSA публичный ключ (PEM) для верификации JWT           |
+| `JWT_ACCESS_TTL`              | Время жизни access токена (например, `15m`)            |
+| `JWT_REFRESH_TTL`             | Время жизни refresh токена (например, `168h`)          |
 
 ### Запуск через Docker Compose
 

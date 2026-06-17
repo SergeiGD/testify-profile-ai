@@ -12,6 +12,8 @@ tags:
     description: healthcheck
   - name: register
     description: register
+  - name: auth
+    description: auth
 
 paths:
   /api/v1/healthcheck/:
@@ -81,6 +83,83 @@ paths:
                 $ref: '#/components/schemas/ResponseError'
 
 
+  /api/v1/auth/login:
+    post:
+      tags:
+        - auth
+      summary: Login
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        "200":
+          description: Успешная авторизация
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenPairResponse'
+        "400":
+          description: Ошибка валидации
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        "401":
+          description: Неверные учётные данные или аккаунт не подтверждён
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+              examples:
+                InvalidCredentials:
+                  summary: Неверный email или пароль
+                  value:
+                    detail: Неверный email или пароль
+                AccountNotConfirmed:
+                  summary: Аккаунт не подтверждён
+                  value:
+                    detail: Аккаунт не подтверждён
+  /api/v1/auth/refresh:
+    post:
+      tags:
+        - auth
+      summary: Refresh tokens
+      operationId: refresh
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+      responses:
+        "200":
+          description: Токены успешно обновлены
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenPairResponse'
+        "400":
+          description: Ошибка валидации
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        "401":
+          description: Недействительный или истёкший refresh токен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+              examples:
+                InvalidRefreshToken:
+                  summary: Недействительный или истёкший refresh токен
+                  value:
+                    detail: Недействительный или истёкший refresh токен
+
 components:
   schemas:
     RegisterRequest:
@@ -130,6 +209,43 @@ components:
         is_ok:
           type: boolean
       description: FirstStepRegister
+
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          x-oapi-codegen-extra-tags:
+            validate: "required,email"
+        password:
+          type: string
+          x-oapi-codegen-extra-tags:
+            validate: "required"
+
+    RefreshRequest:
+      type: object
+      required:
+        - refresh_token
+      properties:
+        refresh_token:
+          type: string
+          x-oapi-codegen-extra-tags:
+            validate: "required"
+
+    TokenPairResponse:
+      type: object
+      required:
+        - access_token
+        - refresh_token
+      properties:
+        access_token:
+          type: string
+        refresh_token:
+          type: string
 
     ResponseError:
       required:

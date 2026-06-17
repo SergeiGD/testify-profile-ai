@@ -31,3 +31,6 @@ tmp
 bin
 
 .idea
+
+# RSA keys
+keys/*.pem
