@@ -34,3 +34,6 @@ bin
 
 # RSA keys
 keys/*.pem
+
+# cursor
+.cursor
