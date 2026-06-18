@@ -37,6 +37,7 @@ func run() error {
 
 	eg := errgroup.Group{}
 	eg.Go(func() error { return application.HttpServer.Run(ctx) })
+	eg.Go(func() error { return application.GrpcServer.Run(ctx) })
 
 	return eg.Wait()
 }

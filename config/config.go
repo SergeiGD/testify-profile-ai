@@ -37,4 +37,8 @@ type Config struct {
 		AccessTTL  time.Duration `env:"JWT_ACCESS_TTL"`
 		RefreshTTL time.Duration `env:"JWT_REFRESH_TTL"`
 	}
+	GRPC struct {
+		Port   string `yaml:"port" env:"GRPC_PORT" env-default:"50051"`
+		APIKey string `env:"GRPC_API_KEY"`
+	}
 }

@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package profile;
+
+option go_package = "github.com/SergeiGD/testify-profile/internal/api/grpc/pb";
+
+service ProfileService {
+  rpc GetProfile(GetProfileRequest) returns (GetProfileResponse);
+}
+
+message GetProfileRequest {
+  string id = 1;
+}
+
+message GetProfileResponse {
+  string id       = 1;
+  string email    = 2;
+  string username = 3;
+  string birth_date = 4;
+}

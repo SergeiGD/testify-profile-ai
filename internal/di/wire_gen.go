@@ -9,14 +9,17 @@ package di
 import (
 	"context"
 	"github.com/SergeiGD/testify-profile/config"
+	grpcapi "github.com/SergeiGD/testify-profile/internal/api/grpc"
 	"github.com/SergeiGD/testify-profile/internal/adapter/postgres"
 	"github.com/SergeiGD/testify-profile/internal/api/http"
 	"github.com/SergeiGD/testify-profile/internal/app"
+	"github.com/SergeiGD/testify-profile/internal/server/grpcserv"
 	"github.com/SergeiGD/testify-profile/internal/server/httpserv"
 	"github.com/SergeiGD/testify-profile/internal/services/clock"
 	"github.com/SergeiGD/testify-profile/internal/services/password"
 	"github.com/SergeiGD/testify-profile/internal/services/token"
 	"github.com/SergeiGD/testify-profile/internal/usecases/auth"
+	"github.com/SergeiGD/testify-profile/internal/usecases/profile"
 	"github.com/SergeiGD/testify-profile/pkg/logger"
 )
 
@@ -50,7 +53,10 @@ func InitializeApp(ctx context.Context, cfg *config.Config) (*app.App, func(), e
 	authUseCase := auth.NewAuthUseCase(userRepository, passwordHasher, jwtService)
 	strictServerInterface := http.NewServerHandler(registerUseCase, authUseCase)
 	httpServer := httpserv.NewHttpServer(cfg, loggerLogger, strictServerInterface)
-	appApp := app.NewApp(cfg, httpServer)
+	profileUseCase := profile.NewProfileUseCase(userRepository)
+	profileHandler := grpcapi.NewProfileHandler(profileUseCase)
+	grpcServer := grpcserv.NewGrpcServer(cfg, loggerLogger, profileHandler)
+	appApp := app.NewApp(cfg, httpServer, grpcServer)
 	return appApp, func() {
 		cleanup()
 	}, nil

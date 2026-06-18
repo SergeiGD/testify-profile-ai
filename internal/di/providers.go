@@ -13,8 +13,10 @@ import (
 	smtpadapter "github.com/SergeiGD/testify-profile/internal/adapter/smtp"
 	"github.com/SergeiGD/testify-profile/internal/app"
 	http2 "github.com/SergeiGD/testify-profile/internal/api/http"
-	"github.com/SergeiGD/testify-profile/internal/server"
+	grpcapi "github.com/SergeiGD/testify-profile/internal/api/grpc"
+	"github.com/SergeiGD/testify-profile/internal/server/grpcserv"
 	"github.com/SergeiGD/testify-profile/internal/server/httpserv"
+	"github.com/SergeiGD/testify-profile/internal/usecases/profile"
 	"github.com/SergeiGD/testify-profile/internal/services/clock"
 	jwtSvc "github.com/SergeiGD/testify-profile/internal/services/jwt"
 	"github.com/SergeiGD/testify-profile/internal/services/linkbuilder"
@@ -53,12 +55,14 @@ var ServiceSet = wire.NewSet(
 var UseCaseSet = wire.NewSet(
 	ProvideRegisterUseCase,
 	auth.NewAuthUseCase,
+	profile.NewProfileUseCase,
 )
 
 var ServerSet = wire.NewSet(
 	http2.NewServerHandler,
 	httpserv.NewHttpServer,
-	wire.Bind(new(server.IServer), new(*httpserv.HttpServer)),
+	grpcapi.NewProfileHandler,
+	grpcserv.NewGrpcServer,
 )
 
 var AppSet = wire.NewSet(

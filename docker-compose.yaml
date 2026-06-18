@@ -9,6 +9,7 @@ services:
     restart: on-failure
     ports:
       - "8080:8080"
+      - "50051:50051"
     depends_on:
       - migrate
     env_file:

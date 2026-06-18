@@ -10,9 +10,11 @@
 |-----------------|--------------------------------------------------------|
 | Язык            | Go 1.25                                                |
 | HTTP фреймворк  | [Gin](https://github.com/gin-gonic/gin)                |
+| gRPC            | [google.golang.org/grpc](https://github.com/grpc/grpc-go) + Protobuf |
 | База данных      | PostgreSQL (драйвер [pgx v5](https://github.com/jackc/pgx)) |
 | Миграции        | [Goose](https://github.com/pressly/goose)              |
-| Кодогенерация   | [oapi-codegen](https://github.com/oapi-codegen/oapi-codegen) (OpenAPI → Go) |
+| Кодогенерация   | [oapi-codegen](https://github.com/oapi-codegen/oapi-codegen) (OpenAPI → Go), `protoc` (Protobuf → Go) |
+| DI              | [Google Wire](https://github.com/google/wire)          |
 | Моки            | [Mockery](https://github.com/vektra/mockery)           |
 | Тесты           | [Testify](https://github.com/stretchr/testify)         |
 | Конфигурация    | [cleanenv](https://github.com/ilyakaznacheev/cleanenv) |
@@ -26,10 +28,17 @@
 
 ```
 internal/
-├── api/http/           # HTTP-обработчики (сгенерированы из OpenAPI + кастомные хендлеры)
+├── api/
+│   ├── http/           # HTTP-обработчики (сгенерированы из OpenAPI + кастомные хендлеры)
+│   └── grpc/           # gRPC-обработчики (сгенерированы из Protobuf)
+│       └── pb/         # Сгенерированный Protobuf-код
+├── server/
+│   ├── httpserv/       # Запуск HTTP-сервера (Gin)
+│   └── grpcserv/       # Запуск gRPC-сервера (с API-key интерцептором)
 ├── usecases/
 │   ├── register/       # Бизнес-логика регистрации
-│   └── auth/           # Бизнес-логика аутентификации (login, refresh)
+│   ├── auth/           # Бизнес-логика аутентификации (login, refresh)
+│   └── profile/        # Бизнес-логика получения профиля
 ├── adapter/
 │   ├── postgres/       # Репозитории (PostgreSQL)
 │   └── smtp/           # Email-отправитель
@@ -44,7 +53,11 @@ internal/
 └── dto/                # DTO для юзкейсов
 ```
 
+Оба сервера (HTTP и gRPC) запускаются параллельно через `errgroup` и завершаются по одному контексту при получении `SIGINT`/`SIGTERM`.
+
 ## API
+
+### HTTP REST
 
 Документация доступна через Swagger UI после запуска: [http://localhost:8081](http://localhost:8081)
 
@@ -58,13 +71,36 @@ internal/
 | POST   | `/api/v1/auth/login`                | Вход: получение access + refresh токенов    |
 | POST   | `/api/v1/auth/refresh`              | Обновление пары токенов по refresh токену   |
 
-### Пример запроса регистрации
+#### Пример запроса регистрации
 
 ```json
 POST /api/v1/register/
 {
   "email": "user@example.com",
   "password": "secret123",
+  "username": "john_doe",
+  "birth_date": "1995-06-15"
+}
+```
+
+### gRPC
+
+Сервис доступен на порту `50051` (настраивается через `GRPC_PORT`).
+
+Спецификация: [`api/proto/profile/profile.proto`](api/proto/profile/profile.proto)
+
+| Метод                           | Описание                                          |
+|---------------------------------|---------------------------------------------------|
+| `ProfileService/GetProfile`     | Получение профиля пользователя по UUID            |
+
+Все вызовы требуют передачи API-ключа в заголовке метаданных `x-api-key` (значение задаётся в `GRPC_API_KEY`). При отсутствии или неверном ключе возвращается статус `UNAUTHENTICATED`.
+
+#### Пример ответа GetProfile
+
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "email": "user@example.com",
   "username": "john_doe",
   "birth_date": "1995-06-15"
 }
@@ -121,6 +157,8 @@ cp .env.example .env
 | `JWT_PUBLIC_KEY`              | RSA публичный ключ (PEM) для верификации JWT           |
 | `JWT_ACCESS_TTL`              | Время жизни access токена (например, `15m`)            |
 | `JWT_REFRESH_TTL`             | Время жизни refresh токена (например, `168h`)          |
+| `GRPC_PORT`                   | Порт gRPC-сервера (по умолчанию `50051`)              |
+| `GRPC_API_KEY`                | API-ключ для аутентификации gRPC-запросов             |
 
 ### Запуск через Docker Compose
 
@@ -131,7 +169,7 @@ make run
 Это запустит:
 - **PostgreSQL** — база данных (порт из `.env`)
 - **migrate** — автоматическое применение миграций
-- **app** — Go-сервер на порту `8080`
+- **app** — Go-сервер: HTTP на порту `8080`, gRPC на порту `50051`
 - **swagger-ui** — документация API на порту `8081`
 
 ## Разработка
@@ -151,3 +189,15 @@ make codegen-mocks
 # Запустить тесты
 make tests
 ```
+
+### Регенерация Protobuf
+
+gRPC-код генерируется из [`api/proto/profile/profile.proto`](api/proto/profile/profile.proto). Для перегенерации:
+
+```bash
+protoc --go_out=. --go_opt=paths=source_relative \
+       --go-grpc_out=. --go-grpc_opt=paths=source_relative \
+       api/proto/profile/profile.proto
+```
+
+Сгенерированные файлы сохраняются в `internal/api/grpc/pb/`.
