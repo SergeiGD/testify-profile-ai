@@ -15,7 +15,7 @@ services:
     env_file:
       - ./.env
     networks:
-      - internal
+      - testify_internal
     volumes:
       - ./:/usr/local/src
 
@@ -34,7 +34,7 @@ services:
     env_file:
       - ./.env
     networks:
-      - internal
+      - testify_internal
 
   migrate:
     build:
@@ -48,7 +48,7 @@ services:
     env_file:
       - ./.env
     networks:
-      - internal
+      - testify_internal
 
   swagger-ui:
     image: swaggerapi/swagger-ui:v5.17.14
@@ -63,7 +63,9 @@ services:
       - app
 
 networks:
-  internal:
+  testify_internal:
+    external: true
+    name: testify_internal
 
 volumes:
   postgres_data:

@@ -13,4 +13,4 @@ tests:
 	go test -v -count=1 ./...
 
 run:
-	docker compose -f docker-compose.yaml up --build
+	docker network create testify_internal ; docker compose -f docker-compose.yaml up --build --force-recreate --remove-orphans
